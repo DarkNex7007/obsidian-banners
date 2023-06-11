@@ -23,6 +23,7 @@ export interface ISettingsOptions {
   iconVerticalAlignment: IconVerticalOption,
   iconVerticalTransform: string,
   useTwemoji: boolean,
+  useCustomemoji: boolean,
   showPreviewInLocalModal: boolean,
   localSuggestionsLimit: number,
   bannersFolder: string,
@@ -409,6 +410,62 @@ export default class SettingsTab extends PluginSettingTab {
         .setValue(allowMobileDrag)
         .onChange(async (val) => this.saveSettings({ allowMobileDrag: val }, { refreshViews: true })));
   }
+  
+  // Custom Emoji
+  const inputContainer = container.createEl('div')
+inputContainer.addClass('banner-setting')
+
+new Setting(inputContainer)
+  .setName('Custom Icon')
+  .setDesc(
+    'Upload a custom image icon to use instead of pre-defined ones.'
+  )
+  
+	// Create image preview element when user selects an image
+	const imgPreview = createImg(null).addClass('banner-image-preview');
+  
+	new FileInput(inputContainer, async function (files) {
+		const reader = new FileReader();
+    
+    // Read file and set preview
+		reader.onload = function () {
+			imgPreview.setAttr('src', reader.result);
+			_this.plugin.settings.bannerIcon = reader.result;
+      await _this.plugin.saveSettings();
+      await updateBanner(_this.containerEl);
+		};
+		
+    const [file] = files;
+    if (file.type.startsWith("image/")) {
+      reader.readAsDataURL(file);
+   }
+}).accept('.jpg, .jpeg, .png')
+
+new Setting(inputContainer)
+   .addExtraButton(function(button) {
+     return button
+       .setTooltip("Remove custom icon")
+       .setIcon("cross")
+       .onClick(async function() {
+         imgPreview.setAttr("src", null);
+         _this.plugin.settings.bannerIcon = "";
+         await _this.plugin.saveSettings();
+         await updateBanner(_this.containerEl); 
+     });
+});
+
+// Add updated dropdown with both default icons and custom images.
+this.iconDropdown = new Dropdown(container).addOptions([
+        { label: "Default", value: "default.png" },
+        ...customIcons.map(name => ({ label: name, value: `custom/${name}` }))
+])
+.setValue(this.plugin.settings.bannerIcon || "default.png")
+.onChange(async function(value) {
+	this.plugin.settings.bannerIcon = value;
+	await this.plugin.saveSettings();
+	await updateBanner(this.containerEl);     
+});
+  
 
   private createHeader(text: string, desc: string = null) {
     const header = this.containerEl.createDiv({ cls: 'setting-item setting-item-heading banner-setting-header' });
